@@ -12,7 +12,7 @@ media/
 
 # Data files
 *.csv
-!anonymized_data.csv
+!*anonymized_data.csv
 elan_data/
 
 # Distribution / packaging
