@@ -1,0 +1,3098 @@
+---
+title: "Role-Playing with Robot Characters: Increasing User Engagement through Narrative and Gameplay Agency Data Analysis"
+author: "Spencer Ng, Ting-Han Lin, You Li, Sarah Sebo"
+date: "Last Updated 3/4/2024"
+output:
+  html_document:
+    number_sections: no
+    toc: yes
+    toc_depth: 2
+    toc_float:
+      collapsed: no
+theme: sandstone
+highlight: tango
+---
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(lubridate)
+library(ggplot2)
+library(ggpubr)
+library(gridExtra)
+library(ggExtra)
+library(tidyr)
+library(plyr)
+library(plotly)
+library(dplyr)
+library(psych)
+library(psycho)
+library(tidyboot)
+library(FactoMineR)
+library(factoextra)
+#library(devtools)
+#install_github("kupietz/kableExtra")
+library(kableExtra)
+library(stringr)
+library(formattable)
+library(factoextra)
+library(usmap)
+library(alphaOutlier)
+library(Rmisc)
+library(mediation)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(car)
+library(mediation)
+library(lsr)
+library(rstatix)
+library(fifer)
+
+### Identify file path and names
+result_data <- read.csv("rpr_anonymized_data.csv", header=T)
+df <- result_data[2:nrow(result_data),] #get rid of one row below the header
+
+# Convert values from str to int
+df$Q5.1_1	<- strtoi(df$Q5.1_1)
+df$Q5.1_2	<- strtoi(df$Q5.1_2)
+df$Q5.1_3	<- strtoi(df$Q5.1_3)
+df$Q5.1_4	<- strtoi(df$Q5.1_4)
+df$Q5.1_5	<- strtoi(df$Q5.1_5)
+df$Q5.1_6	<- strtoi(df$Q5.1_6)
+df$Q5.1_7	<- strtoi(df$Q5.1_7)
+df$Q5.1_8	<- strtoi(df$Q5.1_8)
+df$Q5.1_9	<- strtoi(df$Q5.1_9)
+df$Q6.1_2	<- strtoi(df$Q6.1_2)
+df$Q8.3_4	<- strtoi(df$Q8.3_4)
+df$Q8.5_4	<- strtoi(df$Q8.5_4)
+df$Q9.1_1	<- strtoi(df$Q9.1_1)
+df$Q9.1_2	<- strtoi(df$Q9.1_2)
+df$Q9.1_3	<- strtoi(df$Q9.1_3)
+df$lee.positive <- strtoi(df$lee.positive)
+df$lee.negative <- strtoi(df$lee.negative)
+df$lee.neutral <- strtoi(df$lee.neutral)
+df$lee.positive.negative <- strtoi(df$lee.positive.negative)
+df$jay.positive <- strtoi(df$jay.positive)
+df$jay.negative <- strtoi(df$jay.negative)
+df$jay.neutral <- strtoi(df$jay.neutral)
+df$jay.positive.negative <- strtoi(df$jay.positive.negative)
+df$overall.positive <- strtoi(df$overall.positive)
+df$overall.ignored <- strtoi(df$overall.ignored)
+df$overall.non_immersed <- strtoi(df$overall.non_immersed)
+
+#continuous variables should not be factors
+df$flow_avg <- as.numeric(df$flow_avg)
+df$Q10.2_1	<- as.numeric(df$Q10.2_1) #role-playing experiences 
+df$Q10.2_2	<- as.numeric(df$Q10.2_2) #experience playing cryptic puzzles
+df$Q10.2_3	<- as.numeric(df$Q10.2_3) #experience interacting with robots 
+df$Q10.2_4	<- as.numeric(df$Q10.2_4) #experience with programming
+df$tipi_extraversion <- as.numeric(df$tipi_extraversion)
+df$tipi_openness <- as.numeric(df$tipi_openness)
+df$Jay..RoSAS.Warmth <- as.numeric(df$Jay..RoSAS.Warmth)
+df$Lee..RoSAS.Warmth <- as.numeric(df$Lee..RoSAS.Warmth)
+df$PENS..Autonomy <- as.numeric(df$PENS..Autonomy)
+df$PENS..Presence.Immersion <- as.numeric(df$PENS..Presence.Immersion)
+df$PENS..Relatedness <- as.numeric(df$PENS..Relatedness)
+df$PENS..Competence <- as.numeric(df$PENS..Competence)
+df$total_time_utterance <- as.numeric(df$total_time_utterance)
+df$total_prompted_utterance <- as.numeric(df$total_prompted_utterance)
+df$total_unprompted_utterance <- as.numeric(df$total_unprompted_utterance)
+
+df$Q1.1[df$Q1.1 == "Control"] <- 1
+df$Q1.1[df$Q1.1 == "Gameplay Agency"] <- 2
+df$Q1.1[df$Q1.1 == "Narrative Agency"] <- 3
+
+df$Q1.1 <- factor(
+  df$Q1.1,
+  levels = 1:3, 
+  labels = c("Control", "Gameplay Agency", "Narrative Agency")
+)
+
+```
+
+
+## 3.6.1 Short Flow State Scale: Challenge-Skill Balance
+
+#### I felt like I was competent enough to meet the high demands of the situation. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_1", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_1)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_1-se, ymax=Q5.1_1+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_1,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_1,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_1 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_1 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_1, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Action-Awareness Merging
+
+#### I did things spontaneously and automatically without having to think. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_2", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_2)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_2-se, ymax=Q5.1_2+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_2,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_2,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_2 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_2 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_2, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Clear Goals
+
+#### I had a strong sense of what I wanted to do. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_3", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_3)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_3-se, ymax=Q5.1_3+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_3,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_3,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_3 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_3 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_3, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Unambiguous Feedback
+
+#### I had a good idea while I was performing of how well I was doing. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_4", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_4)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_4-se, ymax=Q5.1_4+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_4,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_4,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_4 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_4 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_4, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Concentration on Task
+
+#### I was completely focused on the task in hand. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_5", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_5)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_5-se, ymax=Q5.1_5+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_5,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_5,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_5 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_5 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_5, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Sense of Control
+
+#### I had a feeling of total control over what I was doing. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_6", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_6)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_6-se, ymax=Q5.1_6+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_6,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_6,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_6 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_6 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_6, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Transformation of Time
+
+#### The way time passed seemed to be different from normal. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_7", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_7)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_7-se, ymax=Q5.1_7+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_7,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_7,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_7 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_7 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_7, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Loss of self-consciousness
+
+#### I was not concerned with how Agent Lee and Agent Jay  perceived me. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_8", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_8)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_8-se, ymax=Q5.1_8+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_8,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_8,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_8 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_8 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_8, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Autotelic Experience
+
+#### The experience was extremely rewarding. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q5.1_9", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q5.1_9)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q5.1_9-se, ymax=Q5.1_9+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q5.1_9,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q5.1_9,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q5.1_9 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q5.1_9 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q5.1_9, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.1 Short Flow State Scale: Overall Flow Score
+
+#### Overall Flow Score {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="flow_avg", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=flow_avg)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=flow_avg-se, ymax=flow_avg+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,5]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 5))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$flow_avg,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$flow_avg,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(flow_avg ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(flow_avg ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$flow_avg, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.2 Player Experience of Need Satisfaction: Autonomy
+
+#### Autonomy {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="PENS..Autonomy", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=PENS..Autonomy)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=PENS..Autonomy-se, ymax=PENS..Autonomy+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$PENS..Autonomy,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$PENS..Autonomy,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(PENS..Autonomy ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(PENS..Autonomy ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$PENS..Autonomy, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.2 Player Experience of Need Satisfaction: Competence
+
+#### Competence {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="PENS..Competence", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=PENS..Competence)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=PENS..Competence-se, ymax=PENS..Competence+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$PENS..Competence,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$PENS..Competence,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(PENS..Competence ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(PENS..Competence ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$PENS..Competence, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.2 Player Experience of Need Satisfaction: Relatedness
+
+#### Relatedness {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="PENS..Relatedness", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=PENS..Relatedness)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=PENS..Relatedness-se, ymax=PENS..Relatedness+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$PENS..Relatedness,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$PENS..Relatedness,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(PENS..Relatedness ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(PENS..Relatedness ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$PENS..Relatedness, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.2 Player Experience of Need Satisfaction: Immersion
+
+#### Immersion {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="PENS..Presence.Immersion", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=PENS..Presence.Immersion)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=PENS..Presence.Immersion-se, ymax=PENS..Presence.Immersion+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$PENS..Presence.Immersion,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$PENS..Presence.Immersion,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(PENS..Presence.Immersion ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(PENS..Presence.Immersion ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$PENS..Presence.Immersion, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.3 Player Social Perceptions: Awkward
+
+#### Awkward {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q9.1_1", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q9.1_1)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q9.1_1-se, ymax=Q9.1_1+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q9.1_1,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q9.1_1,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q9.1_1 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q9.1_1 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q9.1_1, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.3 Player Social Perceptions: Vulnerable
+
+#### Vulnerable {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q9.1_3", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q9.1_3)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q9.1_3-se, ymax=Q9.1_3+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q9.1_3,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q9.1_3,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q9.1_3 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q9.1_3 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q9.1_3, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.3 Player Social Perceptions: Watched
+
+#### Watched {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q9.1_2", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q9.1_2)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q9.1_2-se, ymax=Q9.1_2+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q9.1_2,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q9.1_2,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q9.1_2 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q9.1_2 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q9.1_2, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.4 Robotic Social Attributes Scale: Advisor Robot's Warmth
+
+#### Advisor Robot's Warmth {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Jay..RoSAS.Warmth", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Jay..RoSAS.Warmth)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Jay..RoSAS.Warmth-se, ymax=Jay..RoSAS.Warmth+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Jay..RoSAS.Warmth,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Jay..RoSAS.Warmth,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Jay..RoSAS.Warmth ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Jay..RoSAS.Warmth ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Jay..RoSAS.Warmth, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.4 Robotic Social Attributes Scale: Peer Robot's Warmth
+
+#### Peer Robot's Warmth {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Lee..RoSAS.Warmth", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Lee..RoSAS.Warmth)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Lee..RoSAS.Warmth-se, ymax=Lee..RoSAS.Warmth+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Lee..RoSAS.Warmth,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Lee..RoSAS.Warmth,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Lee..RoSAS.Warmth ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Lee..RoSAS.Warmth ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Lee..RoSAS.Warmth, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.5 Additional Robot and Experience Perceptions: Advisor robot is actively engaged
+
+#### Agent Jay was actively engaged with me during the experience. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q8.5_4", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q8.5_4)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q8.5_4-se, ymax=Q8.5_4+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q8.5_4,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q8.5_4,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q8.5_4 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q8.5_4 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q8.5_4, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.5 Additional Robot and Experience Perceptions: Peer robot is actively engaged
+
+#### Agent Lee was actively engaged with me during the experience. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q8.3_4", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q8.3_4)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q8.3_4-se, ymax=Q8.3_4+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q8.3_4,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q8.3_4,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q8.3_4 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q8.3_4 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q8.3_4, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.5 Additional Robot and Experience Perceptions: Given the chance, I would participate in this experience in my free time.
+
+#### Given the chance, I would participate in this experience in my free time. {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q6.1_2", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q6.1_2)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q6.1_2-se, ymax=Q6.1_2+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q6.1_2,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q6.1_2,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q6.1_2 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q6.1_2 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q6.1_2, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Peer Robot's Impression is Positive
+
+#### Peer Robot's Impression is Positive {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="lee.positive", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=lee.positive)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=lee.positive-se, ymax=lee.positive+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$lee.positive,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$lee.positive,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$lee.positive == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$lee.positive == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$lee.positive == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$lee.positive == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$lee.positive == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$lee.positive == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("lee.positive = 1", "lee.positive = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Peer Robot's Impression is Negative
+
+#### Peer Robot's Impression is Negative {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="lee.negative", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=lee.negative)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=lee.negative-se, ymax=lee.negative+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$lee.negative,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$lee.negative,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$lee.negative == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$lee.negative == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$lee.negative == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$lee.negative == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$lee.negative == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$lee.negative == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("lee.negative = 1", "lee.negative = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Peer Robot's Impression is Neutral
+
+#### Peer Robot's Impression is Neutral {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="lee.neutral", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=lee.neutral)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=lee.neutral-se, ymax=lee.neutral+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$lee.neutral,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$lee.neutral,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$lee.neutral == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$lee.neutral == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$lee.neutral == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$lee.neutral == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$lee.neutral == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$lee.neutral == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("lee.neutral = 1", "lee.neutral = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Peer Robot's Impression is a Mixture of Positive and Negative Attributes
+
+#### Peer Robot's Impression is a Mixture of Positive and Negative Attributes {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="lee.positive.negative", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=lee.positive.negative)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=lee.positive.negative-se, ymax=lee.positive.negative+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$lee.positive.negative,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$lee.positive.negative,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$lee.positive.negative == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$lee.positive.negative == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$lee.positive.negative == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$lee.positive.negative == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$lee.positive.negative == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$lee.positive.negative == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("lee.positive.negative = 1", "lee.positive.negative = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Advisor Robot's Impression is Positive
+
+#### Advisor Robot's Impression is Positive {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="jay.positive", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=jay.positive)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=jay.positive-se, ymax=jay.positive+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$jay.positive,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$jay.positive,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$jay.positive == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$jay.positive == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$jay.positive == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$jay.positive == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$jay.positive == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$jay.positive == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("jay.positive = 1", "jay.positive = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Advisor's Robot's Impression is Negative
+
+#### Advisor's Robot's Impression is Negative {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="jay.negative", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=jay.negative)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=jay.negative-se, ymax=jay.negative+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$jay.negative,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$jay.negative,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$jay.negative == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$jay.negative == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$jay.negative == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$jay.negative == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$jay.negative == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$jay.negative == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("jay.negative = 1", "jay.negative = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Advisor's Robot's Impression is Neutral
+
+#### Advisor's Robot's Impression is Neutral {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="jay.neutral", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=jay.neutral)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=jay.neutral-se, ymax=jay.neutral+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$jay.neutral,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$jay.neutral,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$jay.neutral == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$jay.neutral == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$jay.neutral == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$jay.neutral == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$jay.neutral == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$jay.neutral == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("jay.neutral = 1", "jay.neutral = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Advisor Robot's Impression is a Mixture of Positive and Negative Attributes
+
+#### Advisor Robot's Impression is a Mixture of Positive and Negative Attributes {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="jay.positive.negative", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=jay.positive.negative)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=jay.positive.negative-se, ymax=jay.positive.negative+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$jay.positive.negative,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$jay.positive.negative,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$jay.positive.negative == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$jay.positive.negative == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$jay.positive.negative == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$jay.positive.negative == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$jay.positive.negative == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$jay.positive.negative == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("jay.positive.negative = 1", "jay.positive.negative = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Feeling Positive About the Overall Experience
+
+#### Feeling Positive About the Overall Experience {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="overall.positive", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=overall.positive)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=overall.positive-se, ymax=overall.positive+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$overall.positive,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$overall.positive,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$overall.positive == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$overall.positive == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$overall.positive == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$overall.positive == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$overall.positive == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$overall.positive == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("overall.positive = 1", "overall.positive = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Feeling Ignored About the Overall Experience
+
+#### Feeling Ignored About the Overall Experience {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="overall.ignored", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=overall.ignored)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=overall.ignored-se, ymax=overall.ignored+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$overall.ignored,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$overall.ignored,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$overall.ignored == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$overall.ignored == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$overall.ignored == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$overall.ignored == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$overall.ignored == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$overall.ignored == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("overall.ignored = 1", "overall.ignored = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.6 Coded Free-Response: Feeling Not Immersed About the Overall Experience
+
+#### Feeling Not Immersed About the Overall Experience {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="overall.non_immersed", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=overall.non_immersed)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=overall.non_immersed-se, ymax=overall.non_immersed+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Proportion [0,1]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 1))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$overall.non_immersed,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$overall.non_immersed,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Chi Squared Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+new.matrix <- cbind(as.data.frame(
+  c(nrow(df[df$overall.non_immersed == '1' & df$Q1.1 == "Control", ]), 
+    nrow(df[df$overall.non_immersed == '1' & df$Q1.1 == "Gameplay Agency", ]),
+    nrow(df[df$overall.non_immersed == '1' & df$Q1.1 == "Narrative Agency", ]))),
+  as.data.frame(c(nrow(df[df$overall.non_immersed == '0' & df$Q1.1 == "Control", ]),
+                  nrow(df[df$overall.non_immersed == '0' & df$Q1.1 == "Gameplay Agency", ]),
+                  nrow(df[df$overall.non_immersed == '0' & df$Q1.1 == "Narrative Agency", ]))))
+
+colnames(new.matrix) <- c("overall.non_immersed = 1", "overall.non_immersed = 0")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+chisq.test(
+  new.matrix,
+  correct=FALSE
+)
+
+chisq.post.hoc(new.matrix, control = "bonferroni", popsInRows  = TRUE)
+
+```
+
+
+
+
+## 3.6.7 Personality and Prior Experience: Extraversion
+
+#### Extraversion {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="tipi_extraversion", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=tipi_extraversion)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=tipi_extraversion-se, ymax=tipi_extraversion+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$tipi_extraversion,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$tipi_extraversion,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(tipi_extraversion ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(tipi_extraversion ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$tipi_extraversion, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.7 Personality and Prior Experience: Openness
+
+#### Openness {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="tipi_openness", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=tipi_openness)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=tipi_openness-se, ymax=tipi_openness+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$tipi_openness,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$tipi_openness,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(tipi_openness ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(tipi_openness ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$tipi_openness, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.7 Personality and Prior Experience: Role-Playing Experience
+
+#### Role-Playing Experience {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q10.2_1", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q10.2_1)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q10.2_1-se, ymax=Q10.2_1+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q10.2_1,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q10.2_1,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q10.2_1 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q10.2_1 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q10.2_1, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.7 Personality and Prior Experience: Cryptic Puzzle Experience
+
+#### Cryptic Puzzle Experience {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q10.2_2", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q10.2_2)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q10.2_2-se, ymax=Q10.2_2+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q10.2_2,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q10.2_2,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q10.2_2 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q10.2_2 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q10.2_2, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.7 Personality and Prior Experience: Robot Experience
+
+#### Robot Experience {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q10.2_3", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q10.2_3)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q10.2_3-se, ymax=Q10.2_3+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q10.2_3,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q10.2_3,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q10.2_3 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q10.2_3 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q10.2_3, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.7 Personality and Prior Experience: Programming Experience
+
+#### Programming Experience {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="Q10.2_4", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=Q10.2_4)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=Q10.2_4-se, ymax=Q10.2_4+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [1,7]")+
+theme_bw()+  
+coord_cartesian(ylim = c(1, 7))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$Q10.2_4,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$Q10.2_4,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(Q10.2_4 ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(Q10.2_4 ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$Q10.2_4, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.8 Verbal Engagement: Prompted Utterances
+
+#### Prompted Utterances {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="total_prompted_utterance", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=total_prompted_utterance)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=total_prompted_utterance-se, ymax=total_prompted_utterance+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [0,250]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 250))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$total_prompted_utterance,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$total_prompted_utterance,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(total_prompted_utterance ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(total_prompted_utterance ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$total_prompted_utterance, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.8 Verbal Engagement: Unprompted Utterances
+
+#### Unprompted Utterances {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="total_unprompted_utterance", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=total_unprompted_utterance)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=total_unprompted_utterance-se, ymax=total_unprompted_utterance+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [0,250]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 250))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$total_unprompted_utterance,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$total_unprompted_utterance,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(total_unprompted_utterance ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(total_unprompted_utterance ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$total_unprompted_utterance, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+
+
+
+
+## 3.6.8 Verbal Engagement: Combined Utterances
+
+#### Combined Utterances {.tabset}
+
+##### Plot
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+summarySE <- summarySE(df, measurevar="total_time_utterance", groupvars=c("Q1.1"))
+plot <- ggplot(data=summarySE, aes(x=Q1.1, y=total_time_utterance)) +
+geom_bar(position=position_dodge(), stat="identity", width=0.5, fill=c("#054C70","#05C3DE", "#b0e2ff")) +
+geom_errorbar(aes(ymin=total_time_utterance-se, ymax=total_time_utterance+se),width=.2, position=position_dodge(.9)) +
+xlab("Condition") + scale_y_continuous(expand = c(0, 0))+
+ylab("Questionnaire Rating [0,250]")+
+theme_bw()+  
+coord_cartesian(ylim = c(0, 250))+
+theme(axis.text = element_text(color="black", size = 12), axis.title.y = element_text(color="black", size = 15), 
+axis.title.x = element_text(color="black", size = 15), axis.line.x = element_line(color="black", size = 0.25), axis.line.y = element_line(color="black", size = 0.25))+
+theme(panel.background = element_rect(fill = "#FFFFFF", colour = "#FFFFFF", linetype = "solid"))
+    
+plot
+
+```
+<br>
+
+**Mean and Standard deviation:**
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+# mean & stdev for all conditions
+
+means <- aggregate(
+df$total_time_utterance,
+df['Q1.1'],
+mean
+)
+sds <- aggregate(
+df$total_time_utterance,
+df['Q1.1'],
+sd
+)
+
+new.matrix <- cbind(as.data.frame(means[2]), as.data.frame(sds[2]))
+colnames(new.matrix) <- c("Mean", "Standard Deviation")
+rownames(new.matrix) <- c("Control", "Gameplay Agency", "Narrative Agency")
+
+kbl(new.matrix, digits = 3, align = c("l", "c", "c", "c")) %>% kable_classic() %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+##### Kruskal-Wallis Test
+
+```{r, echo=FALSE, message= FALSE, warning= FALSE}
+
+# Compute Kruskal-Wallis test
+kruskal.test(total_time_utterance ~ Q1.1, data = df)
+
+#Computer Kruskal-Wallis test effect size
+kruskal_effsize(total_time_utterance ~ Q1.1, data = df) 
+
+# Multiple pairwise-comparison between groups
+my_pairwise_test <- pairwise.wilcox.test(df$total_time_utterance, df$Q1.1, p.adjust.method = "bonferroni")
+my_pairwise_test
+
+```
+

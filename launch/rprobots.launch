@@ -1,0 +1,16 @@
+<launch>
+    <node name="speech_recognition" pkg="ros_vosk" type="vosk_node.py"/>
+    <node name="rprobots" pkg="role_playing_robots" output="screen" type="main.py" cwd="node"/>
+
+    <node name="rprobots_server" pkg="role_playing_robots" output="screen" type="server.py" 
+        cwd="node"/>
+
+    <include file="$(find anki_vector_ros)/launch/vector_core.launch">
+        <arg name="camera" value="false"/>
+        <arg name="serial" value="0123456a7" doc="Serial number for Vector"/>
+    </include>
+    <include file="$(find misty_ros)/launch/misty_ros.launch">
+        <arg name="ip" default="192.168.0.123" doc="IP address for Misty"/>
+    </include>
+    
+</launch>
